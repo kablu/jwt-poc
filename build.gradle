@@ -1,0 +1,60 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.3'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.poc'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot Core
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // OAuth2 Resource Server (Approach 1 — Auto JWKS verification)
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // Spring Authorization Server (Approach 3 — Publish JWKS endpoint)
+    implementation 'org.springframework.security:spring-security-oauth2-authorization-server:1.4.2'
+
+    // Nimbus JOSE + JWT (Approach 2 — Full manual JWK control)
+    implementation 'com.nimbusds:nimbus-jose-jwt:9.37.3'
+
+    // BouncyCastle (Approach 4 — PKI / Certificate-backed JWK)
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.78.1'
+
+    // H2 In-Memory Database
+    runtimeOnly 'com.h2database:h2'
+
+    // Caffeine Cache (JWK caching)
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Test Dependencies
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: auth-server
+
+server:
+  port: 9000
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.poc.authserver: DEBUG
+    org.springframework.security: INFO
+    org.springframework.security.oauth2: DEBUG

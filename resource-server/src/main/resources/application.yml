@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: resource-server
+
+  # Approach 1: Spring Security OAuth2 Resource Server
+  # Points to auth-server's JWKS endpoint for JWT validation
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:9000/.well-known/jwks.json
+          issuer-uri: http://localhost:9000
+
+server:
+  port: 8080
+
+# Auth server configuration (used in SecurityConfig)
+auth-server:
+  jwks-uri: http://localhost:9000/.well-known/jwks.json
+  issuer-uri: http://localhost:9000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.poc.resourceserver: DEBUG
+    org.springframework.security: INFO
+    org.springframework.security.oauth2: DEBUG

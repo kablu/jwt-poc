@@ -7,8 +7,9 @@ import com.poc.jwkpoc.entity.KeyRotationAudit;
 import com.poc.jwkpoc.exception.JwkException;
 import com.poc.jwkpoc.repository.KeyRotationAuditRepository;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -30,16 +31,21 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * Audit trail is persisted to H2 database via KeyRotationAuditRepository.
  */
-@Slf4j
 @Service
-@RequiredArgsConstructor
 public class JwkRotationService {
 
+    private static final Logger log = LoggerFactory.getLogger(JwkRotationService.class);
     private static final int RSA_KEY_SIZE = 2048;
     private static final int MAX_ACTIVE_KEYS = 2; // Current + one previous (overlap period)
 
     private final JwkService jwkService;
     private final KeyRotationAuditRepository auditRepository;
+
+    @Autowired
+    public JwkRotationService(JwkService jwkService, KeyRotationAuditRepository auditRepository) {
+        this.jwkService = jwkService;
+        this.auditRepository = auditRepository;
+    }
 
     /**
      * Thread-safe store: kid → RSAKey (full, including private key).

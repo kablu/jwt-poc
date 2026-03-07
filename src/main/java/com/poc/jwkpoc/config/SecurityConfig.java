@@ -4,7 +4,6 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.poc.jwkpoc.service.JwkRotationService;
 import com.poc.jwkpoc.validator.AudienceValidator;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,6 +19,7 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 
@@ -39,10 +39,14 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwkRotationService jwkRotationService;
+
+    @Autowired
+    public SecurityConfig(JwkRotationService jwkRotationService) {
+        this.jwkRotationService = jwkRotationService;
+    }
 
     @Value("${jwk.issuer:https://poc.jwk-poc.local}")
     private String issuer;
@@ -74,6 +78,7 @@ public class SecurityConfig {
                     "/.well-known/jwks.json",
                     "/.well-known/openid-configuration",
                     "/api/auth/token",
+                    "/api/audiences/**",          // Audience registration — public
                     "/actuator/health",
                     "/actuator/info",
                     "/h2-console/**"
@@ -83,7 +88,7 @@ public class SecurityConfig {
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt
-                    .decoder(jwtDecoder())
+                    .decoder(jwtDecoder(jwkSource()))
                     .jwtAuthenticationConverter(jwtAuthenticationConverter())
                 )
             );

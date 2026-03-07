@@ -1,3 +1,4 @@
+
 spring:
   application:
     name: jwt-poc
@@ -35,7 +36,7 @@ spring:
           issuer-uri: ${jwk.issuer:https://poc.jwk-poc.local}
 
 server:
-  port: 8080
+  port: 8083
   error:
     include-message: always
     include-binding-errors: always

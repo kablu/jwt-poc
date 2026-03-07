@@ -3,8 +3,9 @@ package com.poc.jwkpoc.controller;
 import com.poc.jwkpoc.entity.KeyRotationAudit;
 import com.poc.jwkpoc.repository.KeyRotationAuditRepository;
 import com.poc.jwkpoc.service.JwkRotationService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,56 +16,35 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * JWKS Discovery Controller — RFC 7517 compliant JWKS endpoint.
- *
- * Implements Approach 1 (OAuth2 Resource Server) by publishing the JWKS endpoint
- * that Spring Security's NimbusJwtDecoder fetches to verify incoming JWT signatures.
- *
- * PUBLIC endpoints (no authentication required):
- *   GET /.well-known/jwks.json               — JWKS (public keys only)
- *   GET /.well-known/openid-configuration    — OIDC discovery metadata
- *
- * ADMIN endpoints (ROLE_ADMIN required):
- *   POST /api/admin/keys/rotate               — Manual key rotation trigger
- *   GET  /api/admin/keys/audit                — Key rotation audit log
+ * JWKS Discovery Controller - RFC 7517 compliant JWKS endpoint.
  */
-@Slf4j
 @RestController
-@RequiredArgsConstructor
 public class JwksController {
+
+    private static final Logger log = LoggerFactory.getLogger(JwksController.class);
 
     private final JwkRotationService jwkRotationService;
     private final KeyRotationAuditRepository auditRepository;
 
+    @Autowired
+    public JwksController(JwkRotationService jwkRotationService, KeyRotationAuditRepository auditRepository) {
+        this.jwkRotationService = jwkRotationService;
+        this.auditRepository = auditRepository;
+    }
+
     @Value("${jwk.issuer:https://poc.jwk-poc.local}")
     private String issuer;
 
-    /**
-     * JWKS Endpoint — RFC 7517 §5
-     *
-     * Returns the JSON Web Key Set containing ONLY public keys.
-     * Cache-Control header allows clients to cache for 1 hour.
-     *
-     * CRITICAL SECURITY: Private key material is NEVER included here.
-     * toPublicJWKSet() strips all private parameters (d, p, q, dp, dq, qi).
-     */
     @GetMapping(value = "/.well-known/jwks.json", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> getJwks() {
         log.debug("JWKS endpoint requested");
         Map<String, Object> jwksJson = jwkRotationService.getPublicJwkSet().toJSONObject();
-
         return ResponseEntity.ok()
                 .header("Cache-Control", "public, max-age=3600")
                 .header("Access-Control-Allow-Origin", "*")
                 .body(jwksJson);
     }
 
-    /**
-     * OIDC Discovery Endpoint — RFC 8414
-     *
-     * Provides OpenID Connect discovery metadata including the JWKS URI.
-     * Allows clients to auto-discover the JWKS endpoint location.
-     */
     @GetMapping(value = "/.well-known/openid-configuration", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> openidConfiguration() {
         Map<String, Object> discovery = Map.of(
@@ -80,18 +60,12 @@ public class JwksController {
         return ResponseEntity.ok(discovery);
     }
 
-    /**
-     * Admin: Trigger manual key rotation.
-     * Requires ROLE_ADMIN authority.
-     */
     @PostMapping("/api/admin/keys/rotate")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> triggerRotation(
             @RequestParam(defaultValue = "manual-admin-request") String reason) {
-
         log.info("Manual key rotation requested with reason={}", reason);
         jwkRotationService.rotateKey(reason);
-
         return ResponseEntity.ok(Map.of(
                 "status", "rotated",
                 "activeKid", jwkRotationService.getActiveKid(),
@@ -100,10 +74,6 @@ public class JwksController {
         ));
     }
 
-    /**
-     * Admin: Retrieve key rotation audit trail from H2 database.
-     * Requires ROLE_ADMIN authority.
-     */
     @GetMapping("/api/admin/keys/audit")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<KeyRotationAudit>> getAuditLog() {
@@ -111,9 +81,6 @@ public class JwksController {
         return ResponseEntity.ok(audit);
     }
 
-    /**
-     * Admin: Current active key info (kid only — no private key material).
-     */
     @GetMapping("/api/admin/keys/active")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> getActiveKeyInfo() {

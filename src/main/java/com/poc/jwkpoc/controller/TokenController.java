@@ -2,69 +2,80 @@ package com.poc.jwkpoc.controller;
 
 import com.poc.jwkpoc.model.TokenRequest;
 import com.poc.jwkpoc.model.TokenResponse;
+import com.poc.jwkpoc.service.AudienceRegistryService;
 import com.poc.jwkpoc.service.JwtSigningService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Token Management Controller.
- *
- * Public endpoint:
- *   POST /api/auth/token      — Issue a signed JWT
- *
- * Protected endpoints (JWT Bearer required):
- *   POST /api/auth/verify     — Verify a JWT and return its claims
- *   GET  /api/protected/me    — Return current authenticated user's JWT claims
  */
-@Slf4j
 @RestController
 @RequestMapping("/api")
-@RequiredArgsConstructor
 public class TokenController {
 
-    private final JwtSigningService jwtSigningService;
+    private static final Logger log = LoggerFactory.getLogger(TokenController.class);
+
+    private final JwtSigningService         jwtSigningService;
+    private final AudienceRegistryService   audienceRegistryService;
+
+    @Autowired
+    public TokenController(JwtSigningService jwtSigningService,
+                           AudienceRegistryService audienceRegistryService) {
+        this.jwtSigningService       = jwtSigningService;
+        this.audienceRegistryService = audienceRegistryService;
+    }
 
     /**
-     * Issue a signed JWT.
+     * JWT Token issue karo.
+     * POST /api/auth/token
      *
-     * Uses Approach 1 signing flow:
-     *   1. JwkRotationService provides the current active RSA private key
-     *   2. JWT is signed with RS256 algorithm
-     *   3. kid header is set for JWKS key matching
-     *
-     * Public endpoint — no authentication required.
-     *
-     * @param request Token request containing subject, audiences, roles, expiry
-     * @return Signed JWT access token with metadata
+     * Pehle check karta hai: kya requested audiences registered hain?
+     * Agar nahi → 400 Bad Request
+     * Agar haan  → Signed JWT return karta hai
      */
     @PostMapping("/auth/token")
-    public ResponseEntity<TokenResponse> issueToken(@Valid @RequestBody TokenRequest request) {
-        log.info("Token issuance request for subject={}", request.getSubject());
+    public ResponseEntity<?> issueToken(@Valid @RequestBody TokenRequest request) {
+        log.info("Token issuance request: subject={}, audiences={}", request.getSubject(), request.getAudiences());
+
+        // ── Audience Registry Validation ──────────────────────────────────
+        if (request.getAudiences() != null && !request.getAudiences().isEmpty()) {
+            List<String> unregistered = request.getAudiences().stream()
+                    .filter(aud -> !audienceRegistryService.isValidAudience(aud))
+                    .collect(Collectors.toList());
+
+            if (!unregistered.isEmpty()) {
+                log.warn("Token rejected — unregistered audiences: {}", unregistered);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "error",   "AUDIENCE_NOT_REGISTERED",
+                    "message", "Ye audiences auth-server mein registered nahi hain: " + unregistered,
+                    "hint",    "Pehle POST /api/audiences/register call karo"
+                ));
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         TokenResponse response = jwtSigningService.issueToken(request);
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Verify a JWT and return its claims.
-     * Protected endpoint — requires a valid JWT Bearer token.
-     *
-     * @param tokenToVerify The JWT string to verify
-     * @return Parsed claims from the verified JWT
-     */
     @PostMapping("/auth/verify")
     public ResponseEntity<Map<String, Object>> verifyToken(@RequestBody Map<String, String> body) {
         String tokenToVerify = body.get("token");
         if (tokenToVerify == null || tokenToVerify.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "token field is required"));
         }
-
         log.debug("JWT verification requested");
         Map<String, Object> claims = jwtSigningService.parseUnverified(tokenToVerify);
         return ResponseEntity.ok(Map.of(
@@ -73,14 +84,6 @@ public class TokenController {
         ));
     }
 
-    /**
-     * Protected: Return the current authenticated user's JWT claims.
-     * Demonstrates that Approach 1 (OAuth2 Resource Server) is correctly
-     * validating incoming Bearer tokens using the JWKS endpoint.
-     *
-     * @param jwt Injected by Spring Security after JWT validation
-     * @return JWT subject, claims, and key ID used for signing
-     */
     @GetMapping("/protected/me")
     public ResponseEntity<Map<String, Object>> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
         log.debug("Authenticated user info requested for subject={}", jwt.getSubject());
@@ -95,9 +98,6 @@ public class TokenController {
         ));
     }
 
-    /**
-     * Protected: Return greeting confirming JWT authentication is working.
-     */
     @GetMapping("/protected/hello")
     public ResponseEntity<Map<String, String>> hello(@AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(Map.of(

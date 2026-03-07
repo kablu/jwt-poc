@@ -1,13 +1,13 @@
 package com.poc.jwkpoc.validator;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Custom JWT Audience Validator — Approach 1 (OAuth2 Resource Server).
@@ -17,8 +17,6 @@ import java.util.List;
  *
  * This validator rejects any JWT that does not contain the expected audience.
  */
-@Slf4j
-@RequiredArgsConstructor
 public class AudienceValidator implements OAuth2TokenValidator<Jwt> {
 
     private static final OAuth2Error INVALID_AUDIENCE_ERROR = new OAuth2Error(
@@ -27,7 +25,13 @@ public class AudienceValidator implements OAuth2TokenValidator<Jwt> {
             "https://tools.ietf.org/html/rfc7519#section-4.1.3"
     );
 
+    private static final Logger log = LoggerFactory.getLogger(AudienceValidator.class);
+
     private final List<String> requiredAudiences;
+
+    public AudienceValidator(List<String> requiredAudiences) {
+        this.requiredAudiences = requiredAudiences;
+    }
 
     /**
      * Validate that the JWT audience claim contains at least one required audience.

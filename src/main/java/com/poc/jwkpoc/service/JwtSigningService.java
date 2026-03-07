@@ -14,8 +14,9 @@ import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import com.poc.jwkpoc.exception.JwkException;
 import com.poc.jwkpoc.model.TokenRequest;
 import com.poc.jwkpoc.model.TokenResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -36,12 +37,17 @@ import java.util.Map;
  *  - Key size: 2048 bits minimum (enforced by JwkService)
  *  - kid header is always set for JWKS key matching and rotation support
  */
-@Slf4j
 @Service
-@RequiredArgsConstructor
 public class JwtSigningService {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtSigningService.class);
+
     private final JwkRotationService rotationService;
+
+    @Autowired
+    public JwtSigningService(JwkRotationService rotationService) {
+        this.rotationService = rotationService;
+    }
 
     @Value("${jwk.issuer:https://poc.jwk-poc.local}")
     private String issuer;

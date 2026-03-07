@@ -6,7 +6,8 @@ import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.poc.jwkpoc.exception.JwkException;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.security.KeyPair;
@@ -21,9 +22,10 @@ import java.util.UUID;
  * Implements RFC 7517 — JSON Web Key specification.
  * Corresponds to Nimbus JOSE + JWT manual control (Approach 2).
  */
-@Slf4j
 @Service
 public class JwkService {
+
+    private static final Logger log = LoggerFactory.getLogger(JwkService.class);
 
     /**
      * Generate an RSA JWK with the specified key size.
